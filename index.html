@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quran App</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #d4e157, #81c784);
+      overflow: hidden;
+    }
+
+    #sidebar {
+      position: fixed;
+      top: 0;
+      left: -100%;
+      width: 300px;
+      height: 100%;
+      background-color: #2e7d32;
+      color: white;
+      padding: 1em;
+      overflow-y: auto;
+      transition: left 0.3s ease;
+      z-index: 1000;
+    }
+
+    #sidebar h2 {
+      text-align: center;
+      margin-bottom: 1em;
+      font-size: 1.8em;
+    }
+
+    #sidebar ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    #sidebar li {
+      padding: 1em;
+      margin-bottom: 0.8em;
+      background-color: #4caf50;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 1.2em;
+      transition: background-color 0.3s;
+    }
+
+    #sidebar li:hover {
+      background-color: #388e3c;
+    }
+
+    #sidebar li.active {
+      background-color: #1b5e20;
+    }
+
+    #sidebar-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 40px;
+      height: 40px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.5em;
+      z-index: 1100;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+
+    #sidebar-toggle.active {
+      transform: rotate(45deg);
+      background-color: red;
+    }
+
+    #main {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2em;
+      color: #333;
+    }
+
+    #vinyl-player {
+      width: 300px;
+      height: 300px;
+      border: 10px solid #ccc;
+      border-radius: 50%;
+      background: radial-gradient(circle, #222 50%, #000 95%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    #vinyl-player::after {
+      content: '';
+      width: 80px;
+      height: 80px;
+      background-color: #888;
+      border-radius: 50%;
+      position: absolute;
+    }
+
+    #select-surah-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 2em;
+    }
+
+    #select-surah {
+      padding: 0.8em 1.5em;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1.2em;
+      transition: background-color 0.3s;
+    }
+
+    #select-surah:hover {
+      background-color: #388e3c;
+    }
+
+    #ayah-display {
+      text-align: center;
+      margin-top: 2em;
+    }
+
+    #progress-bar-container {
+      margin: 1em 0;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    #progress-bar {
+      width: 100%;
+      height: 12px;
+      background-color: #ddd;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    #progress {
+      height: 100%;
+      width: 0;
+      background-color: #4caf50;
+      transition: width 0.2s;
+    }
+
+    #time-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1em;
+    }
+
+    #controls {
+      display: flex;
+      gap: 1em;
+      margin-top: 1em;
+    }
+
+    #controls button {
+      padding: 0.8em 1.5em;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    #controls button:hover {
+      background-color: #388e3c;
+    }
+  </style>
+</head>
+<body>
+  <button id="sidebar-toggle">☰</button>
+  <aside id="sidebar">
+    <h2>Surah List</h2>
+    <ul id="surah-list"></ul>
+  </aside>
+  <div id="main">
+    <div id="vinyl-player"></div>
+    <div id="select-surah-container">
+      <button id="select-surah">Select Surah</button>
+    </div>
+    <div id="ayah-display">
+      <h3 id="surah-title">Select a Surah</h3>
+      <div id="progress-bar-container">
+        <div id="progress-bar">
+          <div id="progress"></div>
+        </div>
+        <div id="time-info">
+          <span id="current-time">0:00</span>
+          <span id="total-duration">0:00</span>
+        </div>
+      </div>
+      <div id="controls">
+        <button id="play-pause">▶ Play</button>
+        <button id="next-surah">⏭ Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://api.alquran.cloud/v1/surah";
+    const AUDIO_BASE_URL = "https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy";
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const selectSurahButton = document.getElementById('select-surah');
+    const surahList = document.getElementById('surah-list');
+    const surahTitle = document.getElementById('surah-title');
+    const playPauseButton = document.getElementById('play-pause');
+    const nextSurahButton = document.getElementById('next-surah');
+
+    let audio = new Audio();
+    let isPlaying = false;
+    let currentSurahIndex = -1;
+    let surahs = [];
+
+    sidebarToggle.addEventListener('click', toggleSidebar);
+    selectSurahButton.addEventListener('click', toggleSidebar);
+
+    function toggleSidebar() {
+      if (sidebar.style.left === '0px') {
+        sidebar.style.left = '-100%';
+        sidebarToggle.classList.remove('active');
+      } else {
+        sidebar.style.left = '0';
+        sidebarToggle.classList.add('active');
+      }
+    }
+
+    async function fetchSurahs() {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        surahs = data.data;
+        surahs.forEach((surah, index) => {
+          const listItem = document.createElement('li');
+          listItem.textContent = `${surah.number}. ${surah.englishName}`;
+          listItem.addEventListener('click', () => selectSurah(index));
+          surahList.appendChild(listItem);
+        });
+      } catch (error) {
+        alert('Failed to fetch Surah list. Please try again later.');
+      }
+    }
+
+    function selectSurah(index) {
+      currentSurahIndex = index;
+      const surah = surahs[index];
+      surahTitle.textContent = `${surah.englishName} (${surah.name})`;
+      audio.src = `${AUDIO_BASE_URL}/${surah.number}.mp3`;
+
+      audio.addEventListener('loadedmetadata', () => {
+        document.getElementById('total-duration').textContent = formatTime(audio.duration);
+      });
+
+      audio.addEventListener('timeupdate', updateProgressBar);
+      audio.addEventListener('ended', playNextSurahAutomatically);
+      highlightCurrentSurah(index);
+      playAudio();
+      sidebar.style.left = '-100%';
+      sidebarToggle.classList.remove('active');
+    }
+
+    function playAudio() {
+      if (isPlaying) {
+        audio.pause();
+        playPauseButton.textContent = '▶ Play';
+      } else {
+        audio.play();
+        playPauseButton.textContent = '⏸ Pause';
+      }
+      isPlaying = !isPlaying;
+    }
+
+    function updateProgressBar() {
+      const progress = document.getElementById('progress');
+      progress.style.width = (audio.currentTime / audio.duration) * 100 + '%';
+      document.getElementById('current-time').textContent = formatTime(audio.currentTime);
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    function highlightCurrentSurah(index) {
+      const items = surahList.querySelectorAll('li');
+      items.forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+    }
+
+    function playNextSurahAutomatically() {
+      if (currentSurahIndex < surahs.length - 1) {
+        selectSurah(currentSurahIndex + 1);
+      } else {
+        alert('This was the last Surah.');
+      }
+    }
+
+    nextSurahButton.addEventListener('click', () => {
+      if (currentSurahIndex < surahs.length - 1) {
+        selectSurah(currentSurahIndex + 1);
+      } else {
+        alert('This is the last Surah.');
+      }
+    });
+
+    playPauseButton.addEventListener('click', playAudio);
+
+    fetchSurahs();
+  </script>
+</body>
+</html>
